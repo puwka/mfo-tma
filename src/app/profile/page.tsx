@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, TrendingUp, Shield, Sparkles, ChevronRight } from "lucide-react";
 import { useTelegramUser } from "@/hooks/useTelegramUser";
 
@@ -34,17 +36,24 @@ const accentStyles: Record<string, string> = {
 
 export default function ProfilePage() {
   const { fullName, photoUrl, initials, loading } = useTelegramUser();
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
+
+  useEffect(() => {
+    setAvatarLoaded(false);
+  }, [photoUrl]);
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 pt-6 pb-24 animate-pulse">
-        <div className="h-5 w-20 bg-zinc-200 rounded mb-8" />
+      <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+        <div className="h-5 w-20 bg-zinc-200 rounded mb-8 animate-pulse" />
         <div className="rounded-2xl bg-zinc-100 p-6 mb-6">
           <div className="flex gap-4">
-            <div className="w-16 h-16 rounded-full bg-zinc-200" />
+            <div className="w-20 h-20 rounded-full shrink-0 flex items-center justify-center bg-amber-100 border-2 border-amber-200">
+              <div className="w-8 h-8 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin" />
+            </div>
             <div className="flex-1 space-y-2">
-              <div className="h-6 w-32 bg-zinc-200 rounded" />
-              <div className="h-4 w-24 bg-zinc-200 rounded" />
+              <div className="h-6 w-32 bg-zinc-200 rounded animate-pulse" />
+              <div className="h-4 w-24 bg-zinc-200 rounded animate-pulse" />
             </div>
           </div>
         </div>
@@ -66,15 +75,34 @@ export default function ProfilePage() {
 
       <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/60 p-6 mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden bg-white shadow-sm border-2 border-amber-200/80 flex items-center justify-center shrink-0 ring-2 ring-amber-100">
+          <div className="relative w-20 h-20 rounded-full overflow-hidden bg-white shadow-sm border-2 border-amber-200/80 flex items-center justify-center shrink-0 ring-2 ring-amber-100">
             {photoUrl ? (
-              <Image
-                src={photoUrl}
-                alt={fullName}
-                width={80}
-                height={80}
-                className="w-full h-full object-cover"
-              />
+              <>
+                <Image
+                  src={photoUrl}
+                  alt={fullName}
+                  width={80}
+                  height={80}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${avatarLoaded ? "opacity-100" : "opacity-0"}`}
+                  onLoad={() => setAvatarLoaded(true)}
+                />
+                <AnimatePresence mode="wait">
+                  {!avatarLoaded && (
+                    <motion.div
+                      key="avatar-skeleton"
+                      initial={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 flex items-center justify-center bg-amber-100"
+                    >
+                      <div
+                        className="w-8 h-8 rounded-full border-2 border-amber-300 border-t-amber-600 animate-spin"
+                        aria-hidden
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             ) : (
               <span className="text-2xl font-bold text-amber-600">
                 {initials}
