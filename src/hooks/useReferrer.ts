@@ -31,9 +31,18 @@ export function useReferrer() {
 
   useEffect(() => {
     if (processed.current) return;
+    let partnerId: number | null = null;
+
     const tg = typeof window !== "undefined" ? window.Telegram?.WebApp : null;
     const startParam = tg?.initDataUnsafe?.start_param;
-    const partnerId = parseStartParam(startParam);
+    partnerId = parseStartParam(startParam);
+
+    if (partnerId == null && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = params.get("startapp") ?? params.get("ref");
+      partnerId = parseStartParam(fromUrl ?? undefined);
+    }
+
     if (partnerId != null) {
       setPartnerTelegramId(partnerId);
       processed.current = true;
