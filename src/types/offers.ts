@@ -57,6 +57,7 @@ export interface OfferRow {
   id: string;
   type: "mfo" | "credit" | "card";
   data: OfferData;
+  default_url?: string | null;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;

@@ -13,9 +13,11 @@ declare global {
             is_premium?: boolean;
             photo_url?: string;
           };
+          start_param?: string;
         };
         ready: () => void;
         expand: () => void;
+        showPopup?: (params: { title?: string; message?: string }) => void;
       };
     };
   }

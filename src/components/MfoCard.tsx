@@ -3,20 +3,49 @@
 import Image from "next/image";
 import { ChevronRight } from "lucide-react";
 import type { MfoOffer } from "@/types";
+import { useOfferUrl } from "@/hooks/useOfferUrl";
+import { useReferrerStore } from "@/store/referrer";
+import { useTelegramUser } from "@/hooks/useTelegramUser";
 
 function getApprovedToday(approved_count?: number) {
   if (approved_count !== undefined) return approved_count;
   return Math.floor(Math.random() * 200) + 50;
 }
 
-export function MfoCard({ offer }: { offer: MfoOffer }) {
+export function MfoCard({
+  offer,
+  offerId,
+}: {
+  offer: MfoOffer;
+  /** Если передан (uuid из БД), используется ссылка из CPA: партнёрская или default_url. */
+  offerId?: string | null;
+}) {
   const approvedToday = getApprovedToday(offer.approved_count);
+  const resolvedUrl = offerId ? useOfferUrl(offerId) : null;
+  const href = (resolvedUrl && resolvedUrl.length > 0 ? resolvedUrl : offer.url) || "#";
+  const partnerTelegramId = useReferrerStore((s) => s.partnerTelegramId);
+  const { user } = useTelegramUser();
+
+  const handleClick = () => {
+    if (offerId && (partnerTelegramId != null || user?.id)) {
+      fetch("/api/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offerId,
+          partnerTelegramId: partnerTelegramId ?? undefined,
+          userTelegramId: user?.id,
+        }),
+      }).catch(() => {});
+    }
+  };
 
   return (
     <a
-      href={offer.url}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       className="card-base p-4 flex gap-4 items-center block animate-in hover:border-amber-400"
     >
       <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-zinc-100">

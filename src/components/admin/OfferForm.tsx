@@ -8,7 +8,7 @@ type OfferType = "mfo" | "credit" | "card";
 interface OfferFormProps {
   /** Редактирование: существующий оффер. Создание: null. */
   initial: OfferRow | null;
-  onSubmit: (payload: { type: OfferType; data: Record<string, unknown>; is_active?: boolean }) => Promise<void>;
+  onSubmit: (payload: { type: OfferType; data: Record<string, unknown>; default_url?: string | null; is_active?: boolean }) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
 }
@@ -56,12 +56,14 @@ export function OfferForm({ initial, onSubmit, onCancel, isSubmitting }: OfferFo
     if (initial?.data && typeof initial.data === "object") return { ...(initial.data as unknown as Record<string, unknown>) };
     return emptyMfo();
   });
+  const [default_url, setDefaultUrl] = useState(initial?.default_url ?? "");
   const [is_active, setIsActive] = useState(initial?.is_active ?? true);
 
   useEffect(() => {
     if (initial) {
       setType(initial.type as OfferType);
       setData(initial.data && typeof initial.data === "object" ? { ...(initial.data as unknown as Record<string, unknown>) } : emptyMfo());
+      setDefaultUrl(initial.default_url ?? "");
       setIsActive(initial.is_active);
     } else {
       setType("mfo");
@@ -84,7 +86,7 @@ export function OfferForm({ initial, onSubmit, onCancel, isSubmitting }: OfferFo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { type, data: { ...data, type }, is_active };
+    const payload = { type, data: { ...data, type }, default_url: default_url || null, is_active };
     await onSubmit(payload);
   };
 
@@ -120,14 +122,23 @@ export function OfferForm({ initial, onSubmit, onCancel, isSubmitting }: OfferFo
         />
       </div>
       <div>
-        <label className={labelCls}>URL</label>
+        <label className={labelCls}>URL (лендинг в data)</label>
         <input
           type="url"
           value={(data.url as string) ?? ""}
           onChange={(e) => update("url", e.target.value)}
           className={inputCls}
           placeholder="https://..."
-          required
+        />
+      </div>
+      <div>
+        <label className={labelCls}>Ссылка по умолчанию (кнопка «Оформить»)</label>
+        <input
+          type="url"
+          value={default_url}
+          onChange={(e) => setDefaultUrl(e.target.value)}
+          className={inputCls}
+          placeholder="https://... (ссылка админа, если партнёр не указал свою)"
         />
       </div>
       <div>

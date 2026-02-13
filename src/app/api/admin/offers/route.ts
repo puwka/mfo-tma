@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin()
     .from("offers")
-    .select("id, type, data, is_active, created_at")
+    .select("id, type, data, default_url, is_active, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -30,13 +30,15 @@ export async function PATCH(request: NextRequest) {
   const is_active = body.is_active as boolean | undefined;
   const type = body.type as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
+  const default_url = body.default_url as string | null | undefined;
 
   if (!offerId) {
     return NextResponse.json({ error: "Нужен offerId" }, { status: 400 });
   }
 
-  const updates: { is_active?: boolean; type?: string; data?: Record<string, unknown> } = {};
+  const updates: { is_active?: boolean; type?: string; data?: Record<string, unknown>; default_url?: string | null } = {};
   if (typeof is_active === "boolean") updates.is_active = is_active;
+  if (default_url !== undefined) updates.default_url = default_url === "" ? null : default_url;
   if (type && ["mfo", "credit", "card"].includes(type)) {
     updates.type = type;
     if (data && typeof data === "object") updates.data = { ...data, type };
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const type = body.type as string | undefined;
   const data = body.data as Record<string, unknown> | undefined;
+  const default_url = (body.default_url as string | undefined) ?? null;
 
   if (!type || !data || !["mfo", "credit", "card"].includes(type)) {
     return NextResponse.json(
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
   }
 
   const id = typeof data.id === "string" ? data.id : crypto.randomUUID();
-  const payload = { type, data: { ...data, type, id }, is_active: true };
+  const payload = { type, data: { ...data, type, id }, default_url: default_url || null, is_active: true };
 
   const { data: row, error } = await supabaseAdmin()
     .from("offers")

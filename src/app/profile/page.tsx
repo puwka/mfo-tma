@@ -13,9 +13,13 @@ import {
   Settings,
   Headphones,
   Heart,
+  UserPlus,
+  Copy,
+  Link2,
 } from "lucide-react";
 import { useTelegramUser } from "@/hooks/useTelegramUser";
 import { RoleGuard } from "@/components/RoleGuard";
+import { PartnerLinkManager } from "@/components/partner/PartnerLinkManager";
 
 const CTAS = [
   {
@@ -44,16 +48,66 @@ const accentStyles: Record<string, string> = {
   blue: "bg-blue-500/10 text-blue-700 border-blue-200",
 };
 
-// Мок-статистика для партнёра
-const PARTNER_STATS = [
-  { offer: "Займ MoneyMan", clicks: 124, conversions: 18 },
-  { offer: "Займ ZAYMIGO", clicks: 89, conversions: 12 },
-  { offer: "Кредит Тинькофф", clicks: 56, conversions: 5 },
-];
+function getAdminHeaders(telegramId: number | undefined): HeadersInit {
+  const h: Record<string, string> = {};
+  if (telegramId != null) h["x-telegram-user-id"] = String(telegramId);
+  return h;
+}
+
+function PartnerStatsSection({ telegramId }: { telegramId: number | undefined }) {
+  const [rows, setRows] = useState<Array<{ offer_name: string; clicks_total: number; clicks_unique: number }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!telegramId) return;
+    setLoading(true);
+    fetch("/api/partner/stats", { headers: getAdminHeaders(telegramId) })
+      .then((r) => r.json())
+      .then((data) => setRows(data?.rows ?? []))
+      .finally(() => setLoading(false));
+  }, [telegramId]);
+
+  return (
+    <>
+      <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+        Статистика
+      </h2>
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 overflow-hidden">
+        {loading ? (
+          <div className="p-6 flex justify-center">
+            <BarChart3 className="w-6 h-6 animate-pulse text-amber-600" />
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="p-4 text-sm text-zinc-500 text-center">Пока нет кликов</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-zinc-500 border-b border-amber-200 bg-amber-100/50">
+                <th className="py-2 px-4">Оффер</th>
+                <th className="py-2 px-4">Клики (всего)</th>
+                <th className="py-2 px-4">Уникальные</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.offer_name} className="border-b border-amber-100">
+                  <td className="py-2 px-4 font-medium text-zinc-900">{row.offer_name}</td>
+                  <td className="py-2 px-4">{row.clicks_total}</td>
+                  <td className="py-2 px-4">{row.clicks_unique}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
 
 export default function ProfilePage() {
-  const { fullName, photoUrl, initials, loading, role, profile } = useTelegramUser();
+  const { fullName, photoUrl, initials, loading, role, profile, user, refetch } = useTelegramUser();
   const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const [becomingPartner, setBecomingPartner] = useState(false);
 
   useEffect(() => {
     setAvatarLoaded(false);
@@ -129,39 +183,78 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Партнёр: дашборд */}
-      <RoleGuard allow="partner" currentRole={role} fallback={null}>
+      {/* User: кнопка «Стать партнером» */}
+      <RoleGuard allow="user" currentRole={role} fallback={null}>
         <section className="mb-8">
           <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
-            Дашборд партнёра
+            Партнёрская программа
           </h2>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-amber-700 font-semibold">
-              <BarChart3 className="w-5 h-5" />
-              Статистика по реферальным ссылкам
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-zinc-500 border-b border-amber-200">
-                    <th className="py-2 pr-2">Оффер</th>
-                    <th className="py-2 pr-2">Переходы</th>
-                    <th className="py-2">Конверсия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PARTNER_STATS.map((row) => (
-                    <tr key={row.offer} className="border-b border-amber-100">
-                      <td className="py-2 pr-2 font-medium text-zinc-900">{row.offer}</td>
-                      <td className="py-2 pr-2">{row.clicks}</td>
-                      <td className="py-2">{row.conversions}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-zinc-500">Мок-данные. Интеграция с clicks — в разработке.</p>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!user?.id) return;
+              setBecomingPartner(true);
+              try {
+                const res = await fetch("/api/partner/become", {
+                  method: "POST",
+                  headers: { "x-telegram-user-id": String(user.id) },
+                });
+                if (res.ok) {
+                  await refetch();
+                }
+              } finally {
+                setBecomingPartner(false);
+              }
+            }}
+            disabled={becomingPartner}
+            className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 flex items-center justify-center gap-2 text-amber-800 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors"
+          >
+            <UserPlus className="w-5 h-5" />
+            {becomingPartner ? "Оформление…" : "Стать партнером"}
+          </button>
+        </section>
+      </RoleGuard>
+
+      {/* Партнёр: Мои ссылки */}
+      <RoleGuard allow={["partner", "admin"]} currentRole={role} fallback={null}>
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+            Мои ссылки
+          </h2>
+          <p className="text-sm text-zinc-500 mb-3">
+            Укажи свою реферальную ссылку для каждого оффера. Если не указана — будет использоваться ссылка админа.
+          </p>
+          <PartnerLinkManager telegramId={user?.id} />
+        </section>
+
+        {/* Продвижение: скопировать ссылку на приложение */}
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+            Продвижение
+          </h2>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 space-y-3">
+            <p className="text-sm text-zinc-600">
+              Размещай эту ссылку — переходы по офферам будут засчитываться тебе.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const bot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "bot";
+                const link = `https://t.me/${bot}/app?startapp=p_${user?.id ?? ""}`;
+                void navigator.clipboard.writeText(link);
+                window.Telegram?.WebApp?.showPopup?.({ title: "Ссылка скопирована" });
+              }}
+              className="w-full btn-accent flex items-center justify-center gap-2 py-3"
+            >
+              <Copy className="w-5 h-5" />
+              Скопировать мою ссылку на приложение
+            </button>
           </div>
+        </section>
+
+        {/* Статистика партнёра */}
+        <section className="mb-8">
+          <PartnerStatsSection telegramId={user?.id} />
         </section>
       </RoleGuard>
 

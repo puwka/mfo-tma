@@ -151,6 +151,7 @@ export default function AdminPage() {
   const handleOfferSubmit = async (payload: {
     type: "mfo" | "credit" | "card";
     data: Record<string, unknown>;
+    default_url?: string | null;
     is_active?: boolean;
   }) => {
     if (!telegramId) return;
@@ -160,7 +161,7 @@ export default function AdminPage() {
         const res = await fetch("/api/admin/offers", {
           method: "POST",
           headers: getAdminHeaders(telegramId),
-          body: JSON.stringify({ type: payload.type, data: payload.data }),
+          body: JSON.stringify({ type: payload.type, data: payload.data, default_url: payload.default_url ?? null }),
         });
         if (res.ok) {
           const created = await res.json();
@@ -175,6 +176,7 @@ export default function AdminPage() {
             offerId: editingOffer.id,
             type: payload.type,
             data: payload.data,
+            default_url: payload.default_url ?? null,
             is_active: payload.is_active ?? true,
           }),
         });
@@ -498,8 +500,8 @@ export default function AdminPage() {
 
       {/* Модалка добавления/редактирования оффера */}
       {offerModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
-          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-xl p-6">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <h3 className="text-lg font-bold text-zinc-900 mb-4">
               {offerModal === "add" ? "Добавить оффер" : "Редактировать оффер"}
             </h3>

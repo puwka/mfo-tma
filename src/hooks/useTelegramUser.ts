@@ -8,8 +8,9 @@ declare global {
     Telegram?: {
       WebApp: {
         initData: string;
-        initDataUnsafe: { user?: TelegramUser };
+        initDataUnsafe: { user?: TelegramUser; start_param?: string };
         ready: () => void;
+        showPopup?: (params: { title?: string; message?: string }) => void;
       };
     };
   }
@@ -68,6 +69,10 @@ export function useTelegramUser() {
 
   const role = profile?.app_role ?? "user";
 
+  const refetch = useCallback(() => {
+    if (user) syncProfile(user);
+  }, [user, syncProfile]);
+
   return {
     user,
     profile,
@@ -76,5 +81,6 @@ export function useTelegramUser() {
     initials,
     photoUrl: user?.photo_url ?? profile?.photo_url ?? null,
     role,
+    refetch,
   };
 }
