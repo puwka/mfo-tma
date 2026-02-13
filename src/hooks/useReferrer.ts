@@ -40,9 +40,13 @@ export function useReferrer() {
     }
   }, [setPartnerTelegramId]);
 
-  return useReferrerStore((s) => ({
-    partnerTelegramId: s.partnerTelegramId,
-    setPartnerTelegramId: s.setPartnerTelegramId,
-    clear: s.clear,
-  }));
+  const partnerTelegramId = useReferrerStore((s) => s.partnerTelegramId);
+  const setPartnerTelegramIdFn = useReferrerStore((s) => s.setPartnerTelegramId);
+  const clearFn = useReferrerStore((s) => s.clear);
+
+  return {
+    partnerTelegramId,
+    setPartnerTelegramId: setPartnerTelegramIdFn,
+    clear: clearFn,
+  };
 }
