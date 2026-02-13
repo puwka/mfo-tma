@@ -50,14 +50,36 @@ export async function POST(request: NextRequest) {
       .eq("telegram_id", currentId)
       .single();
 
-    if (!current?.id || current.referred_by) {
+    if (current?.referred_by) {
       return NextResponse.json({ ok: true });
     }
 
-    await supabase
-      .from("profiles")
-      .update({ referred_by: referrer.id })
-      .eq("id", current.id);
+    if (current?.id) {
+      await supabase
+        .from("profiles")
+        .update({ referred_by: referrer.id })
+        .eq("id", current.id);
+    } else {
+      // Профиль ещё не создан (POST /api/profile мог не успеть). Создаём с referred_by;
+      // при конфликте (профиль создан параллельно) — обновляем referred_by.
+      const { error: insertError } = await supabase.from("profiles").insert({
+        telegram_id: currentId,
+        referred_by: referrer.id,
+      });
+      if (insertError?.code === "23505") {
+        const { data: existing } = await supabase
+          .from("profiles")
+          .select("id, referred_by")
+          .eq("telegram_id", currentId)
+          .single();
+        if (existing?.id && !existing.referred_by) {
+          await supabase
+            .from("profiles")
+            .update({ referred_by: referrer.id })
+            .eq("id", existing.id);
+        }
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
