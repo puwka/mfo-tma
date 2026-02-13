@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
 
   const supabase = supabaseAdmin();
 
+  const { count: referralsCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("referred_by", profile.id as string);
+
   const { data: clicks, error: clicksError } = await supabase
     .from("clicks")
     .select("offer_id, user_id")
@@ -33,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   const offerIds = [...byOffer.keys()];
   if (offerIds.length === 0) {
-    return NextResponse.json({ rows: [] });
+    return NextResponse.json({ rows: [], referralsCount: referralsCount ?? 0 });
   }
 
   const { data: offers } = await supabase
@@ -55,5 +60,5 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json({ rows });
+  return NextResponse.json({ rows, referralsCount: referralsCount ?? 0 });
 }

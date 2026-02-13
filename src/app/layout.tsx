@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { BottomNav } from "@/components/BottomNav";
 import { ReferrerInit } from "@/components/ReferrerInit";
+import { ReferralRecorder } from "@/components/ReferralRecorder";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,6 +35,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ReferrerInit />
+        <ReferralRecorder />
         <main className="min-h-screen safe-area-bottom pb-4">
           {children}
         </main>

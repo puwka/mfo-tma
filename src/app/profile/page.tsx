@@ -56,6 +56,7 @@ function getAdminHeaders(telegramId: number | undefined): HeadersInit {
 
 function PartnerStatsSection({ telegramId }: { telegramId: number | undefined }) {
   const [rows, setRows] = useState<Array<{ offer_name: string; clicks_total: number; clicks_unique: number }>>([]);
+  const [referralsCount, setReferralsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,7 +64,10 @@ function PartnerStatsSection({ telegramId }: { telegramId: number | undefined })
     setLoading(true);
     fetch("/api/partner/stats", { headers: getAdminHeaders(telegramId) })
       .then((r) => r.json())
-      .then((data) => setRows(data?.rows ?? []))
+      .then((data) => {
+        setRows(data?.rows ?? []);
+        setReferralsCount(data?.referralsCount ?? 0);
+      })
       .finally(() => setLoading(false));
   }, [telegramId]);
 
@@ -72,13 +76,18 @@ function PartnerStatsSection({ telegramId }: { telegramId: number | undefined })
       <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
         Статистика
       </h2>
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 mb-4">
+        <p className="text-sm text-zinc-700">
+          По твоей ссылке зашло в ТМА: <span className="font-bold text-amber-700">{loading ? "…" : referralsCount}</span> чел.
+        </p>
+      </div>
       <div className="rounded-2xl border border-amber-200 bg-amber-50/50 overflow-hidden">
         {loading ? (
           <div className="p-6 flex justify-center">
             <BarChart3 className="w-6 h-6 animate-pulse text-amber-600" />
           </div>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-500 text-center">Пока нет кликов</p>
+          <p className="p-4 text-sm text-zinc-500 text-center">Пока нет кликов по офферам</p>
         ) : (
           <table className="w-full text-sm">
             <thead>

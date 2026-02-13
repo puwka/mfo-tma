@@ -35,7 +35,9 @@ export default function AdminPage() {
   const telegramId = user?.id;
 
   const [stats, setStats] = useState<{ usersCount: number; clicksCount: number } | null>(null);
+  const [referrals, setReferrals] = useState<{ referrals: Array<{ user_name: string; user_telegram_id: number; referred_by_name: string | null; referred_by_telegram_id?: number }>; byPartner: Array<{ partner_name: string; partner_telegram_id: number; count: number }> } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [referralsLoading, setReferralsLoading] = useState(true);
   const [users, setUsers] = useState<Array<{ id: string; telegram_id: number; username: string | null; first_name: string | null; last_name: string | null; app_role: UserRole; created_at: string }>>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
@@ -64,6 +66,22 @@ export default function AdminPage() {
       }
     } finally {
       setStatsLoading(false);
+    }
+  }, [telegramId]);
+
+  const fetchReferrals = useCallback(async () => {
+    if (!telegramId) return;
+    setReferralsLoading(true);
+    try {
+      const res = await fetch("/api/admin/referrals", {
+        headers: getAdminHeaders(telegramId),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReferrals({ referrals: data.referrals ?? [], byPartner: data.byPartner ?? [] });
+      }
+    } finally {
+      setReferralsLoading(false);
     }
   }, [telegramId]);
 
@@ -100,6 +118,10 @@ export default function AdminPage() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  useEffect(() => {
+    if (activeTab === "stats") fetchReferrals();
+  }, [activeTab, fetchReferrals]);
 
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
@@ -259,12 +281,12 @@ export default function AdminPage() {
             </h2>
             <button
               type="button"
-              onClick={() => fetchStats()}
-              disabled={statsLoading}
+              onClick={() => { fetchStats(); fetchReferrals(); }}
+              disabled={statsLoading || referralsLoading}
               className="p-2 text-zinc-500 hover:text-amber-600 disabled:opacity-50"
               aria-label="Обновить"
             >
-              <RefreshCw className={`w-4 h-4 ${statsLoading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${statsLoading || referralsLoading ? "animate-spin" : ""}`} />
             </button>
           </div>
           {statsLoading ? (
@@ -291,6 +313,63 @@ export default function AdminPage() {
           ) : (
             <p className="text-sm text-zinc-500">Не удалось загрузить статистику.</p>
           )}
+
+          {/* Кто от кого пришёл */}
+          <div className="mt-8">
+            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+              Кто от кого пришёл в ТМА
+            </h3>
+            {referralsLoading ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 flex justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            ) : referrals && (referrals.referrals.length > 0 || referrals.byPartner.length > 0) ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+                  <p className="text-xs text-zinc-500 px-4 py-2 border-b border-zinc-100">По партнёрам</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-zinc-500 border-b border-zinc-200 bg-zinc-50">
+                        <th className="py-2 px-4">Партнёр</th>
+                        <th className="py-2 px-4">Привёл (чел.)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referrals.byPartner.map((p) => (
+                        <tr key={p.partner_telegram_id} className="border-b border-zinc-100">
+                          <td className="py-2 px-4 font-medium text-zinc-900">{p.partner_name}</td>
+                          <td className="py-2 px-4">{p.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+                  <p className="text-xs text-zinc-500 px-4 py-2 border-b border-zinc-100">Детализация</p>
+                  <div className="max-h-60 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-zinc-500 border-b border-zinc-200 bg-zinc-50 sticky top-0">
+                          <th className="py-2 px-4">Кто зашёл</th>
+                          <th className="py-2 px-4">От кого</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {referrals.referrals.map((r, i) => (
+                          <tr key={i} className="border-b border-zinc-100">
+                            <td className="py-2 px-4 text-zinc-900">{r.user_name} (ID {r.user_telegram_id})</td>
+                            <td className="py-2 px-4 text-zinc-600">{r.referred_by_name ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500">Пока никто ни от кого не заходил.</p>
+            )}
+          </div>
         </section>
       )}
 
