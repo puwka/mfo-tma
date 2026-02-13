@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Briefcase, FileText } from "lucide-react";
+import { Wallet, CreditCard, Landmark } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Займы", icon: Wallet },
-  { href: "/brokers", label: "Подбор", icon: Briefcase },
-  { href: "/info", label: "Информация", icon: FileText },
+  { href: "/credits", label: "Кредиты", icon: Landmark },
+  { href: "/cards", label: "Карты", icon: CreditCard },
 ];
 
 export function BottomNav() {
@@ -22,7 +22,8 @@ export function BottomNav() {
     >
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-4">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const isActive =
+            pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
             <Link
               key={href}

@@ -30,6 +30,10 @@ export function useTelegramUser() {
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
+        // Cookie для middleware (защита /admin)
+        if (data?.app_role && typeof document !== "undefined") {
+          document.cookie = `app_role=${data.app_role}; path=/; max-age=86400; samesite=lax`;
+        }
       }
     } catch {
       // Игнорируем ошибки синхронизации
@@ -62,6 +66,8 @@ export function useTelegramUser() {
   const initials =
     user?.first_name?.[0]?.toUpperCase() ?? "?";
 
+  const role = profile?.app_role ?? "user";
+
   return {
     user,
     profile,
@@ -69,5 +75,6 @@ export function useTelegramUser() {
     fullName,
     initials,
     photoUrl: user?.photo_url ?? profile?.photo_url ?? null,
+    role,
   };
 }

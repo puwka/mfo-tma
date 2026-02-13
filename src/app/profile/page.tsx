@@ -4,8 +4,18 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, TrendingUp, Shield, Sparkles, ChevronRight } from "lucide-react";
+import {
+  TrendingUp,
+  Shield,
+  Sparkles,
+  ChevronRight,
+  BarChart3,
+  Settings,
+  Headphones,
+  Heart,
+} from "lucide-react";
 import { useTelegramUser } from "@/hooks/useTelegramUser";
+import { RoleGuard } from "@/components/RoleGuard";
 
 const CTAS = [
   {
@@ -34,8 +44,15 @@ const accentStyles: Record<string, string> = {
   blue: "bg-blue-500/10 text-blue-700 border-blue-200",
 };
 
+// Мок-статистика для партнёра
+const PARTNER_STATS = [
+  { offer: "Займ MoneyMan", clicks: 124, conversions: 18 },
+  { offer: "Займ ZAYMIGO", clicks: 89, conversions: 12 },
+  { offer: "Кредит Тинькофф", clicks: 56, conversions: 5 },
+];
+
 export default function ProfilePage() {
-  const { fullName, photoUrl, initials, loading } = useTelegramUser();
+  const { fullName, photoUrl, initials, loading, role, profile } = useTelegramUser();
   const [avatarLoaded, setAvatarLoaded] = useState(false);
 
   useEffect(() => {
@@ -64,16 +81,11 @@ export default function ProfilePage() {
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
       <div className="flex items-center justify-between mb-6">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-zinc-600 hover:text-amber-600 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Назад</span>
-        </Link>
+        <h1 className="text-xl font-bold text-zinc-900">Профиль</h1>
       </div>
 
-      <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/60 p-6 mb-8">
+      {/* Блок профиля: аватар, имя, user_id */}
+      <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/60 p-6 mb-6">
         <div className="flex items-center gap-4">
           <div className="relative w-20 h-20 rounded-full overflow-hidden bg-white shadow-sm border-2 border-amber-200/80 flex items-center justify-center shrink-0 ring-2 ring-amber-100">
             {photoUrl ? (
@@ -104,20 +116,80 @@ export default function ProfilePage() {
                 </AnimatePresence>
               </>
             ) : (
-              <span className="text-2xl font-bold text-amber-600">
-                {initials}
-              </span>
+              <span className="text-2xl font-bold text-amber-600">{initials}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-zinc-900 truncate">
-              {fullName}
-            </h1>
+            <h2 className="text-xl font-bold text-zinc-900 truncate">{fullName}</h2>
             <p className="text-sm text-zinc-500 mt-0.5">Профиль в Telegram</p>
+            {profile?.id && (
+              <p className="text-xs text-zinc-400 mt-1 font-mono">ID: {profile.id.slice(0, 8)}…</p>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Партнёр: дашборд */}
+      <RoleGuard allow="partner" currentRole={role} fallback={null}>
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+            Дашборд партнёра
+          </h2>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-amber-700 font-semibold">
+              <BarChart3 className="w-5 h-5" />
+              Статистика по реферальным ссылкам
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-zinc-500 border-b border-amber-200">
+                    <th className="py-2 pr-2">Оффер</th>
+                    <th className="py-2 pr-2">Переходы</th>
+                    <th className="py-2">Конверсия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PARTNER_STATS.map((row) => (
+                    <tr key={row.offer} className="border-b border-amber-100">
+                      <td className="py-2 pr-2 font-medium text-zinc-900">{row.offer}</td>
+                      <td className="py-2 pr-2">{row.clicks}</td>
+                      <td className="py-2">{row.conversions}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-zinc-500">Мок-данные. Интеграция с clicks — в разработке.</p>
+          </div>
+        </section>
+      </RoleGuard>
+
+      {/* Админ: ссылка в админ-панель */}
+      <RoleGuard allow="admin" currentRole={role} fallback={null}>
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+            Администрирование
+          </h2>
+          <Link
+            href="/admin"
+            className="flex items-center justify-between rounded-2xl border border-zinc-200 bg-white p-4 hover:bg-zinc-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-900">Панель администратора</p>
+                <p className="text-sm text-zinc-500">Управление пользователями и статистика</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-zinc-400" />
+          </Link>
+        </section>
+      </RoleGuard>
+
+      {/* Общее: статус (User) */}
       <section>
         <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
           Ваш статус
@@ -134,14 +206,43 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-zinc-900">{cta.title}</h3>
-                  <p className="text-sm text-zinc-600 mt-1 leading-relaxed">
-                    {cta.desc}
-                  </p>
+                  <p className="text-sm text-zinc-600 mt-1 leading-relaxed">{cta.desc}</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0 mt-1" />
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Избранное / История (User) — заглушка */}
+      <section className="mt-8">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+          Разделы
+        </h2>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 text-zinc-500">
+            <Heart className="w-5 h-5 shrink-0" />
+            <span className="text-sm">Избранное — в разработке</span>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 text-zinc-500">
+            <BarChart3 className="w-5 h-5 shrink-0" />
+            <span className="text-sm">История кликов — в разработке</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Контакты поддержки */}
+      <section className="mt-8">
+        <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+          Поддержка
+        </h2>
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
+          <Headphones className="w-5 h-5 text-amber-500 shrink-0" />
+          <div>
+            <p className="font-medium text-zinc-900">Служба поддержки</p>
+            <p className="text-sm text-zinc-500">Напишите в Telegram: @support</p>
+          </div>
         </div>
       </section>
 
