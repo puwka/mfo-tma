@@ -5,17 +5,20 @@ import Link from "next/link";
 import {
   Users,
   BarChart3,
-  FileEdit,
   ArrowLeft,
   Search,
   Loader2,
   Check,
   X,
   RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useTelegramUser } from "@/hooks/useTelegramUser";
 import type { UserRole } from "@/types/offers";
 import type { OfferRow } from "@/types/offers";
+import { OfferForm } from "@/components/admin/OfferForm";
 
 function getAdminHeaders(telegramId: number | undefined): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
@@ -42,6 +45,11 @@ export default function AdminPage() {
   const [offersLoading, setOffersLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"stats" | "users" | "offers">("stats");
+  const [offerModal, setOfferModal] = useState<"add" | "edit" | null>(null);
+  const [editingOffer, setEditingOffer] = useState<OfferRow | null>(null);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     if (!telegramId) return;
@@ -137,6 +145,65 @@ export default function AdminPage() {
       }
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const handleOfferSubmit = async (payload: {
+    type: "mfo" | "credit" | "card";
+    data: Record<string, unknown>;
+    is_active?: boolean;
+  }) => {
+    if (!telegramId) return;
+    setOfferSubmitting(true);
+    try {
+      if (offerModal === "add") {
+        const res = await fetch("/api/admin/offers", {
+          method: "POST",
+          headers: getAdminHeaders(telegramId),
+          body: JSON.stringify({ type: payload.type, data: payload.data }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          setOffers((prev) => [created, ...prev]);
+          setOfferModal(null);
+        }
+      } else if (editingOffer) {
+        const res = await fetch("/api/admin/offers", {
+          method: "PATCH",
+          headers: getAdminHeaders(telegramId),
+          body: JSON.stringify({
+            offerId: editingOffer.id,
+            type: payload.type,
+            data: payload.data,
+            is_active: payload.is_active ?? true,
+          }),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          setOffers((prev) => prev.map((o) => (o.id === editingOffer.id ? updated : o)));
+          setOfferModal(null);
+          setEditingOffer(null);
+        }
+      }
+    } finally {
+      setOfferSubmitting(false);
+    }
+  };
+
+  const handleDeleteOffer = async (offerId: string) => {
+    if (!telegramId) return;
+    setDeletingId(offerId);
+    try {
+      const res = await fetch(`/api/admin/offers?offerId=${encodeURIComponent(offerId)}`, {
+        method: "DELETE",
+        headers: getAdminHeaders(telegramId),
+      });
+      if (res.ok) {
+        setOffers((prev) => prev.filter((o) => o.id !== offerId));
+        setDeleteConfirmId(null);
+      }
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -311,19 +378,32 @@ export default function AdminPage() {
       {/* Офферы */}
       {activeTab === "offers" && (
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Редактор офферов
+              МФО, Кредиты, Карты
             </h2>
-            <button
-              type="button"
-              onClick={() => fetchOffers()}
-              disabled={offersLoading}
-              className="p-2 text-zinc-500 hover:text-amber-600 disabled:opacity-50"
-              aria-label="Обновить"
-            >
-              <RefreshCw className={`w-4 h-4 ${offersLoading ? "animate-spin" : ""}`} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => fetchOffers()}
+                disabled={offersLoading}
+                className="p-2 text-zinc-500 hover:text-amber-600 disabled:opacity-50"
+                aria-label="Обновить"
+              >
+                <RefreshCw className={`w-4 h-4 ${offersLoading ? "animate-spin" : ""}`} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingOffer(null);
+                  setOfferModal("add");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 text-zinc-900 px-4 py-2 text-sm font-semibold hover:bg-amber-400"
+              >
+                <Plus className="w-4 h-4" />
+                Добавить
+              </button>
+            </div>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
             {offersLoading && offers.length === 0 ? (
@@ -332,7 +412,7 @@ export default function AdminPage() {
               </div>
             ) : offers.length === 0 ? (
               <p className="p-6 text-sm text-zinc-500 text-center">
-                Офферов пока нет. Добавьте через Supabase или API.
+                Офферов пока нет. Нажмите «Добавить», чтобы создать МФО, кредит или карту.
               </p>
             ) : (
               <div className="divide-y divide-zinc-100">
@@ -347,34 +427,93 @@ export default function AdminPage() {
                         {o.type} · {o.is_active ? "Активен" : "Скрыт"}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleOffer(o.id, !o.is_active)}
-                      disabled={togglingId === o.id}
-                      className={`shrink-0 rounded-xl px-4 py-2 text-sm font-medium flex items-center gap-2 transition-colors ${
-                        o.is_active
-                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                          : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
-                      } disabled:opacity-50`}
-                    >
-                      {togglingId === o.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : o.is_active ? (
-                        <Check className="w-4 h-4" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleOffer(o.id, !o.is_active)}
+                        disabled={togglingId === o.id}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors ${
+                          o.is_active
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                            : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
+                        } disabled:opacity-50`}
+                      >
+                        {togglingId === o.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : o.is_active ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        {o.is_active ? "Скрыть" : "Показать"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingOffer(o);
+                          setOfferModal("edit");
+                        }}
+                        className="p-2 rounded-lg text-zinc-500 hover:bg-amber-100 hover:text-amber-600 transition-colors"
+                        aria-label="Редактировать"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      {deleteConfirmId === o.id ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-zinc-600">Удалить?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOffer(o.id)}
+                            disabled={deletingId === o.id}
+                            className="rounded-lg bg-red-100 text-red-700 px-2 py-1 text-xs font-medium hover:bg-red-200 disabled:opacity-50"
+                          >
+                            {deletingId === o.id ? "…" : "Да"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="rounded-lg bg-zinc-100 text-zinc-600 px-2 py-1 text-xs font-medium hover:bg-zinc-200"
+                          >
+                            Нет
+                          </button>
+                        </div>
                       ) : (
-                        <X className="w-4 h-4" />
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(o.id)}
+                          className="p-2 rounded-lg text-zinc-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          aria-label="Удалить"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
-                      {o.is_active ? "Скрыть" : "Показать"}
-                    </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <p className="text-xs text-zinc-400">
-            Добавление новых офферов — через Supabase Dashboard или POST /api/admin/offers (type, data).
-          </p>
         </section>
+      )}
+
+      {/* Модалка добавления/редактирования оффера */}
+      {offerModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50">
+          <div className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-xl p-6">
+            <h3 className="text-lg font-bold text-zinc-900 mb-4">
+              {offerModal === "add" ? "Добавить оффер" : "Редактировать оффер"}
+            </h3>
+            <OfferForm
+              initial={offerModal === "edit" ? editingOffer : null}
+              onSubmit={handleOfferSubmit}
+              onCancel={() => {
+                setOfferModal(null);
+                setEditingOffer(null);
+              }}
+              isSubmitting={offerSubmitting}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
