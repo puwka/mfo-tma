@@ -239,7 +239,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => {
-                const bot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "bot";
+                const bot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "fawfawfawfwabot";
                 const link = `https://t.me/${bot}/app?startapp=p_${user?.id ?? ""}`;
                 void navigator.clipboard.writeText(link);
                 window.Telegram?.WebApp?.showPopup?.({ title: "Ссылка скопирована" });
